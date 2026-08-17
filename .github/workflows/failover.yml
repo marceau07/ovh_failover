@@ -28,7 +28,7 @@ jobs:
           IP_PRIMARY: ${{ secrets.IP_PRIMARY }}
           IP_SECONDARY: ${{ secrets.IP_SECONDARY }}
           # Racine (@) + wildcard (*) pour chaque domaine = tous les sous-domaines couverts
-          RECORDS: "trainizer.fr:@,trainizer.fr:*,trainizer.fr:www,trainizer.fr:api,trainizer.fr:mercure,trainizer.fr:forum,trainizer.fr:enterprise"
+          RECORDS: "trainizer.fr:@,trainizer.fr:*,trainizer.fr:www,trainizer.fr:app,trainizer.fr:api,trainizer.fr:mercure,trainizer.fr:forum,trainizer.fr:enterprise,moanin.fr:@,moanin.fr:*,moanin.fr:www,marceau-rodrigues.fr:@,marceau-rodrigues.fr:*,marceau-rodrigues.fr:www,marceau-rodrigues.fr:bot-discord,marceau-rodrigues.fr:challenge,marceau-rodrigues.fr:contact,marceau-rodrigues.fr:dl,marceau-rodrigues.fr:innov,marceau-rodrigues.fr:julie-bressand,marceau-rodrigues.fr:ktane,marceau-rodrigues.fr:le-covid-dechaine,marceau-rodrigues.fr:legendarium,marceau-rodrigues.fr:old,marceau-rodrigues.fr:old-recette,marceau-rodrigues.fr:parc-informatique,marceau-rodrigues.fr:simpleduc,marceau-rodrigues.fr:sportifs-de-coeur,marceau-rodrigues.fr:sundry-game,marceau-rodrigues.fr:youtime,marceau-rodrigues.fr:proxmox,marceau-rodrigues.fr:plex,marceau-rodrigues.fr:npm,marceau-rodrigues.fr:mc,marceau-rodrigues.fr:pma,marceau-rodrigues.fr:games,marceau-rodrigues.fr:api,marceau-rodrigues.fr:vpn,marceau-rodrigues.fr:status,marceau-rodrigues.fr:jellyfin,marceau-rodrigues.fr:lsf-bb,marceau-rodrigues.fr:si7,marceau-rodrigues.fr:beweb"
           HEALTHCHECK_PORT: "443"
           FAILBACK_TO_PRIMARY: "true"
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
