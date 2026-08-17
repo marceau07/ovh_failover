@@ -1,0 +1,35 @@
+name: OVH DNS Failover
+
+on:
+  schedule:
+    # Toutes les 5 minutes (minimum pratique sur GitHub Actions)
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # permet de lancer le test manuellement depuis l'onglet Actions
+
+jobs:
+  failover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dependances
+        run: pip install ovh
+
+      - name: Verifier les IP et basculer si necessaire
+        env:
+          OVH_ENDPOINT: ovh-eu
+          OVH_APPLICATION_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
+          OVH_APPLICATION_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
+          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
+          IP_PRIMARY: ${{ secrets.IP_PRIMARY }}
+          IP_SECONDARY: ${{ secrets.IP_SECONDARY }}
+          # Racine (@) + wildcard (*) pour chaque domaine = tous les sous-domaines couverts
+          RECORDS: "trainizer.fr:@,trainizer.fr:*,trainizer.fr:www,trainizer.fr:api,trainizer.fr:mercure,trainizer.fr:forum,trainizer.fr:enterprise"
+          HEALTHCHECK_PORT: "443"
+          FAILBACK_TO_PRIMARY: "true"
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: python ovh_failover.py
