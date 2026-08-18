@@ -22,6 +22,7 @@ import os
 import socket
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -159,10 +160,19 @@ def send_daily_status(primary_ok, secondary_ok, summary):
         req = urllib.request.Request(
             DISCORD_WEBHOOK_URL,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                # Sans User-Agent explicite, Cloudflare bloque souvent les
+                # requetes avec un 403 (le UA par defaut de Python est
+                # detecte comme trafic bot).
+                "User-Agent": "ovh-failover-script/1.0",
+            },
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        print(f"[warn] Alerte Discord echouee : HTTP {exc.code} - {body}")
     except Exception as exc:  # noqa: BLE001
         print(f"[warn] Alerte Discord echouee : {exc}")
 

@@ -46,6 +46,7 @@ secret**, crée :
 | `OVH_CONSUMER_KEY` | obtenue à l'étape 1 |
 | `IP_PRIMARY` | ton IP fixe Free |
 | `IP_SECONDARY` | ton IP fixe Orange |
+| `RECORDS` | les enregistrements à changer _example.com:@,example.com:*,example.com:sub-domain_ |
 | `WEBHOOK_URL` *(optionnel)* | voir section notifications ci-dessous |
 
 ## 4. Couvrir tous les sous-domaines (wildcard)
