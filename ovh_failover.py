@@ -127,6 +127,24 @@ def should_send_status():
     return is_manual_run() or is_daily_status_time()
 
 
+def format_records_summary(summary, max_chars=1000):
+    groups = {}
+    for name, target in summary:
+        groups.setdefault(target, []).append(name)
+
+    lines = [
+        f"**{target}** ({len(names)}) : {', '.join(names)}"
+        for target, names in groups.items()
+    ]
+    text = "\n".join(lines) if lines else "aucun enregistrement"
+
+    # Discord limite un champ d'embed a 1024 caracteres : on tronque par
+    # securite pour ne jamais faire echouer l'envoi si la liste s'allonge.
+    if len(text) > max_chars:
+        text = text[: max_chars - 1] + "…"
+    return text
+
+
 def send_daily_status(primary_ok, secondary_ok, summary):
     if not DISCORD_WEBHOOK_URL:
         return
@@ -134,9 +152,7 @@ def send_daily_status(primary_ok, secondary_ok, summary):
     def label(ok):
         return "🟢 En ligne" if ok else "🔴 Hors service"
 
-    records_value = "\n".join(
-        f"`{name}` -> `{target}`" for name, target in summary
-    ) or "aucun enregistrement"
+    records_value = format_records_summary(summary)
 
     payload = {
         "embeds": [
