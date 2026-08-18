@@ -17,11 +17,14 @@ Logique :
 Toute la configuration se fait par variables d'environnement (voir README.md).
 """
 
+import json
 import os
 import socket
 import sys
 import time
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import ovh
 
@@ -50,6 +53,10 @@ HEALTHCHECK_DELAY = float(os.environ.get("HEALTHCHECK_DELAY", "2"))
 FAILBACK_TO_PRIMARY = os.environ.get("FAILBACK_TO_PRIMARY", "true").lower() == "true"
 
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # ex: https://ntfy.sh/mon-topic-secret
+
+# Recap quotidien de l'etat des deux FAI, poste sur un webhook Discord
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+DAILY_STATUS_HOUR = int(os.environ.get("DAILY_STATUS_HOUR", "18"))  # heure locale Europe/Paris
 
 
 def parse_records(raw):
@@ -95,6 +102,69 @@ def notify(message):
         urllib.request.urlopen(req, timeout=5)
     except Exception as exc:  # noqa: BLE001
         print(f"[warn] Notification echouee : {exc}")
+
+
+def status_color(primary_ok, secondary_ok):
+    if primary_ok and secondary_ok:
+        return 0x2ECC71  # vert : tout va bien
+    if primary_ok or secondary_ok:
+        return 0xF1C40F  # orange : bascule active sur un seul lien
+    return 0xE74C3C  # rouge : les deux liens sont down
+
+
+def is_daily_status_time():
+    now = datetime.now(ZoneInfo("Europe/Paris"))
+    return now.hour == DAILY_STATUS_HOUR and now.minute < 5
+
+
+def is_manual_run():
+    # GITHUB_EVENT_NAME est fourni automatiquement par GitHub Actions
+    return os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+
+
+def should_send_status():
+    return is_manual_run() or is_daily_status_time()
+
+
+def send_daily_status(primary_ok, secondary_ok, summary):
+    if not DISCORD_WEBHOOK_URL:
+        return
+
+    def label(ok):
+        return "🟢 En ligne" if ok else "🔴 Hors service"
+
+    records_value = "\n".join(
+        f"`{name}` -> `{target}`" for name, target in summary
+    ) or "aucun enregistrement"
+
+    payload = {
+        "embeds": [
+            {
+                "title": (
+                    "État des connexions FAI (test manuel)"
+                    if is_manual_run()
+                    else "État quotidien des connexions FAI"
+                ),
+                "color": status_color(primary_ok, secondary_ok),
+                "fields": [
+                    {"name": "Free (primaire)", "value": label(primary_ok), "inline": True},
+                    {"name": "Orange (secondaire)", "value": label(secondary_ok), "inline": True},
+                    {"name": "Enregistrements DNS", "value": records_value, "inline": False},
+                ],
+            }
+        ]
+    }
+
+    try:
+        req = urllib.request.Request(
+            DISCORD_WEBHOOK_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] Alerte Discord echouee : {exc}")
 
 
 def get_record(client, zone, subdomain):
@@ -175,27 +245,35 @@ def main():
         consumer_key=OVH_CONSUMER_KEY,
     )
 
+    daily_summary = []
     for zone, subdomain in records:
-        label = f"{subdomain or '@'}.{zone}"
+        label_str = f"{subdomain or '@'}.{zone}"
         try:
             record_id, current_target = get_record(client, zone, subdomain)
         except Exception as exc:  # noqa: BLE001
-            print(f"[erreur] {label} : impossible de lire l'enregistrement ({exc})")
+            print(f"[erreur] {label_str} : impossible de lire l'enregistrement ({exc})")
+            daily_summary.append((label_str, "erreur"))
             continue
 
         target = decide_target(current_target, primary_ok, secondary_ok)
 
         if target == current_target:
-            print(f"  {label} : reste sur {current_target}")
+            print(f"  {label_str} : reste sur {current_target}")
+            daily_summary.append((label_str, current_target))
             continue
 
         try:
             set_record(client, zone, record_id, target)
-            print(f"  {label} : {current_target} -> {target}")
-            notify(f"Bascule DNS : {label} de {current_target} vers {target}")
+            print(f"  {label_str} : {current_target} -> {target}")
+            notify(f"Bascule DNS : {label_str} de {current_target} vers {target}")
+            daily_summary.append((label_str, target))
         except Exception as exc:  # noqa: BLE001
-            print(f"[erreur] {label} : echec de la mise a jour ({exc})")
-            notify(f"Echec de bascule pour {label} : {exc}")
+            print(f"[erreur] {label_str} : echec de la mise a jour ({exc})")
+            notify(f"Echec de bascule pour {label_str} : {exc}")
+            daily_summary.append((label_str, "erreur"))
+
+    if should_send_status():
+        send_daily_status(primary_ok, secondary_ok, daily_summary)
 
 
 if __name__ == "__main__":

@@ -32,4 +32,6 @@ jobs:
           HEALTHCHECK_PORT: "443"
           FAILBACK_TO_PRIMARY: "true"
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DAILY_STATUS_HOUR: "18"
         run: python ovh_failover.py

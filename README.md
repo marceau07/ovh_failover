@@ -118,8 +118,56 @@ est [ntfy.sh](https://ntfy.sh) (gratuit, sans inscription) :
 2. Installe l'app ntfy (iOS/Android) ou abonne-toi sur https://ntfy.sh/failover-a1b2c3
 3. Renseigne `WEBHOOK_URL` = `https://ntfy.sh/failover-a1b2c3` dans les secrets GitHub
 
+## 8. Récap quotidien sur Discord (18h)
+
+Le script poste automatiquement un récap de l'état des deux FAI sur un
+webhook Discord, une fois par jour à 18h heure de Paris (ajusté
+automatiquement à l'heure d'été/hiver, pas besoin d'y retoucher deux fois
+par an).
+
+**Créer le webhook Discord :**
+
+1. Dans ton serveur Discord, va sur le salon où tu veux recevoir le récap
+2. Paramètres du salon → **Intégrations** → **Webhooks** → **Nouveau webhook**
+3. Donne-lui un nom (ex: "FAI Status"), copie l'**URL du webhook**
+
+**Côté GitHub :**
+
+Ajoute un secret `DISCORD_WEBHOOK_URL` avec cette URL. C'est tout — le
+workflow existant s'en charge, pas besoin d'un cron séparé. Le récap est
+envoyé dans deux cas :
+
+- automatiquement, une fois par jour, sur la fenêtre 18h00-18h04 heure de
+  Paris ;
+- à chaque déclenchement **manuel** du workflow (bouton *Run workflow* dans
+  l'onglet Actions) — pratique pour tester la notification sans attendre
+  18h.
+
+En dehors de ces deux cas (les exécutions automatiques toutes les 5 minutes
+en dehors de la fenêtre de 18h), aucun message n'est envoyé sur Discord sauf
+en cas de bascule ou de panne totale (ça, ça reste géré par `WEBHOOK_URL`,
+voir section 7).
+
+Le message contient : l'état de Free, l'état d'Orange, et la cible actuelle
+de chaque enregistrement DNS géré. La couleur de l'embed reflète l'état
+global : vert (tout va bien), orange (bascule active sur un seul lien),
+rouge (les deux liens sont down).
+
+Pour changer l'heure du récap, modifie `DAILY_STATUS_HOUR` dans le fichier
+workflow (`18` par défaut).
+
 ## Limites à connaître
 
+- **Quota de minutes GitHub Actions.** Sur un dépôt **privé**, le plan gratuit
+  inclut 2 000 minutes/mois. Avec une exécution toutes les 5 minutes, ça
+  représente environ 8 600 exécutions/mois — largement au-dessus du quota
+  gratuit, même si chaque run ne dure que 20-30 secondes (GitHub facture par
+  minute entière). Sur un dépôt **public**, les minutes sont illimitées et
+  gratuites. Les secrets restent protégés (masqués dans les logs, comme tu
+  l'as vu) même sur un dépôt public — c'est la configuration recommandée ici
+  pour éviter toute facturation surprise. Si tu préfères vraiment rester en
+  privé, passe l'intervalle à 15 minutes (`*/15 * * * *`) pour repasser sous
+  le quota gratuit.
 - **Fréquence réelle** : GitHub Actions annonce un cron toutes les 5 minutes,
   mais l'exécution peut être retardée de quelques minutes en cas de forte
   charge sur leur infrastructure — ce n'est pas garanti à la seconde près.
